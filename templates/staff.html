@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Staff Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/styles.min.css') }}">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        .card {
+            margin-bottom: 20px;
+        }
+
+        #desks .desk-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #desks .desk-card button {
+            padding: 5px 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container py-5">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3">Staff Dashboard</h1>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-primary">Logout</a>
+        </div>
+
+        <div class="card p-4 mb-4">
+            <h2 class="h5 mb-3">Select Desk</h2>
+            <select id="deskSelect" class="form-select">
+                <option value="">-- Select Desk --</option>
+            </select>
+        </div>
+
+        <div class="card p-4">
+            <h2 class="h5 mb-3">Desk Status</h2>
+            <div id="desks">
+                <em>Please select a desk to see status.</em>
+            </div>
+        </div>
+        <div id="deskWaitingList"></div>
+    </div>
+
+    <script>
+let desksLoaded = false; // Flag to populate dropdown only once
+
+function loadStatus() {
+    $.get('/status', function (data) {
+        const selectedDesk = $('#deskSelect').val();
+        let html = '';
+
+        // Populate dropdown only once
+        if (!desksLoaded) {
+            data.desks.forEach(d => {
+                $('#deskSelect').append(
+                    `<option value="${d.id}">${d.name}</option>`
+                );
+            });
+            desksLoaded = true;
+        }
+
+        // Show placeholder if no desk selected
+        if (!selectedDesk) {
+            $('#desks').html('<em>Please select a desk to see status.</em>');
+            $('#deskWaitingList').html('');
+            return;
+        }
+
+        // Show ONLY selected desk
+        const desk = data.desks.find(d => d.id == selectedDesk);
+        if (desk) {
+            const statusText = desk.ticket_number
+                ? `Serving Ticket #${desk.ticket_number}`
+                : 'Free';
+
+            html += `<div class="card shadow-sm p-3 mb-3">
+                        <strong>${desk.name}</strong> - ${statusText}
+                        ${desk.ticket_number
+                            ? `<button class="btn btn-success btn-lg ms-3" onclick="finish(${desk.id})">Finish</button>`
+                            : ''}
+                     </div>`;
+
+            $('#desks').html(html);
+
+            // ------------------ Waiting List for Selected Desk ------------------
+            const deskWaiting = data.waiting.slice(0, 15); // first 15 tickets
+            let waitingHtml = '';
+
+            deskWaiting.forEach(t => {
+                waitingHtml += `
+                    <div class="card text-center shadow-sm me-2 mb-2" style="width:70px; flex-shrink: 0;">
+                        <div class="card-body p-2">
+                            <h4 class="mb-0">${t}</h4>
+                        </div>
+                    </div>
+                `;
+            });
+
+            $('#deskWaitingList').html(`
+                <div class="card shadow-sm p-3">
+                    <h5 class="mb-3">Waiting List for ${desk.name}</h5>
+                    <div class="d-flex flex-row flex-wrap">
+                        ${waitingHtml}
+                    </div>
+                </div>
+            `);
+
+        } else {
+            $('#desks').html('<div>Desk not found.</div>');
+            $('#deskWaitingList').html('');
+        }
+    });
+}
+
+// Load desks list initially
+loadStatus();
+
+// Refresh every 3 seconds
+setInterval(loadStatus, 3000);
+
+// Reload when desk changes
+$('#deskSelect').on('change', loadStatus);
+
+// Finish current service
+function finish(desk_id) {
+    $.post('/finish_service/' + desk_id, function () {
+        loadStatus();
+    });
+}
+
+    </script>
+    <!-- Bootstrap JS -->
+    <script src="{{ url_for('static', filename='assets/js/bootstrap.bundle.min.js') }}"></script>
+
+</body>
+
+</html>

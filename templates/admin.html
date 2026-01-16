@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Dashboard</title>
+
+<!-- Bootstrap -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<style>
+    body {
+        background: #f5f6fa;
+    }
+    .card {
+        border-radius: 12px;
+    }
+</style>
+</head>
+
+<body>
+
+<nav class="navbar navbar-dark bg-dark px-4">
+    <span class="navbar-brand fw-bold">🎛 Admin Dashboard</span>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
+</nav>
+
+<div class="container-fluid mt-4">
+
+    <!-- ===================== System Info ===================== -->
+    <div class="card mb-4">
+        <div class="card-header fw-bold">System Information</div>
+        <div class="card-body">
+            <form id="systemInfoForm" class="row g-3">
+                <div class="col-md-5">
+                    <input type="text" class="form-control" name="name" placeholder="System Name" required>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control" name="location" placeholder="Location" required>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+
+        <!-- ===================== Staff Users ===================== -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header fw-bold">Staff Users</div>
+                <div class="card-body">
+                    <form id="addUserForm" class="mb-3">
+                        <input class="form-control mb-2" name="username" placeholder="Username" required>
+                        <input class="form-control mb-2" type="password" name="password" placeholder="Password" required>
+                        <button class="btn btn-success w-100">Add Staff</button>
+                    </form>
+                    <div id="usersList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== Desks ===================== -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header fw-bold">Service Desks</div>
+                <div class="card-body">
+                    <form id="addDeskForm" class="mb-3">
+                        <input class="form-control mb-2" name="name" placeholder="Desk Name" required>
+                        <button class="btn btn-success w-100">Add Desk</button>
+                    </form>
+                    <div id="desksList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== Ads ===================== -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header fw-bold">Video Ads</div>
+                <div class="card-body">
+                    <form id="uploadAdForm" enctype="multipart/form-data" class="mb-3">
+                        <input class="form-control mb-2" type="file" name="ad_video" accept="video/mp4" required>
+                        <button class="btn btn-primary w-100">Upload Ad</button>
+                    </form>
+                    <div id="adsList"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ===================== Analytics Summary ===================== -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center p-3">
+                <h6>Total Served Today</h6>
+                <h2 id="totalServed">0</h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center p-3">
+                <h6>Currently Waiting</h6>
+                <h2 id="currentlyWaiting">0</h2>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center p-3">
+                <h6>Average Waiting Time (min)</h6>
+                <h2 id="avgWait">0</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== Charts ===================== -->
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card p-3">
+                <h6>Average Service Time per Desk</h6>
+                <canvas id="serviceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card p-3">
+                <h6>Tickets Served Today</h6>
+                <canvas id="ticketsChart"></canvas>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card p-3">
+                <h6>Average Waiting Time per Desk</h6>
+                <canvas id="waitChart"></canvas>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="card p-3">
+                <h6>Waiting Trend (Hourly)</h6>
+                <canvas id="waitingTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ===================== JS LOGIC (UNCHANGED) ===================== -->
+<script>
+$(document).ready(function(){
+    // -----------------------
+    // System Info
+    // -----------------------
+    $('#systemInfoForm').submit(function(e){
+        e.preventDefault();
+        $.post('/update_system_info', $(this).serialize(), function(){
+            alert('System info updated');
+        });
+    });
+
+    // -----------------------
+    // User Management
+    // -----------------------
+    function loadUsers(){
+        $.get('/users', function(data){
+            let html='';
+            data.forEach(u=>{
+                html += `
+                <div>
+                    <input type="text" id="username_${u.id}" value="${u.username}" />
+                    <button onclick="updateUser(${u.id})">Save</button>
+                    <button onclick="deleteUser(${u.id})">Delete</button>
+                </div>`;
+            });
+            $('#usersList').html(html);
+        });
+    }
+    loadUsers();
+    $('#addUserForm').submit(function(e){
+        e.preventDefault();
+        $.post('/add_user', $(this).serialize(), function(){ loadUsers(); });
+    });
+    window.deleteUser = function(id){ $.post('/delete_user/'+id, function(){ loadUsers(); }); }
+    window.updateUser = function(id){
+        const newUsername = $(`#username_${id}`).val();
+        $.post('/update_user/'+id, {username: newUsername}, function(){
+            alert('User updated successfully');
+            loadUsers();
+        });
+    }
+
+    // -----------------------
+    // Desk Management
+    // -----------------------
+    function loadDesks(){
+        $.get('/desks', function(data){
+            let html='';
+            data.forEach(d=>{
+                html += `
+                <div>
+                    <input type="text" id="desk_${d.id}" value="${d.name}" />
+                    <button onclick="updateDesk(${d.id})">Save</button>
+                    <button onclick="deleteDesk(${d.id})">Delete</button>
+                </div>`;
+            });
+            $('#desksList').html(html);
+        });
+    }
+    loadDesks();
+    $('#addDeskForm').submit(function(e){
+        e.preventDefault();
+        $.post('/add_desk', $(this).serialize(), function(){ loadDesks(); });
+    });
+    window.deleteDesk = function(id){ $.post('/delete_desk/'+id, function(){ loadDesks(); }); }
+    window.updateDesk = function(id){
+        const newName = $(`#desk_${id}`).val();
+        $.post('/update_desk/'+id, {name: newName}, function(){
+            alert('Desk updated successfully');
+            loadDesks();
+        });
+    }
+
+    // -----------------------
+    // Ads Management
+    // -----------------------
+    function loadAds(){
+        $.get('/list_ads', function(data){
+            let html='';
+            data.forEach(ad=>{
+                html += `
+                <div>
+                    ${ad.filename} 
+                    <button onclick="setActive(${ad.id})">Play</button>
+                    <input type="file" id="ad_file_${ad.id}" accept="video/mp4" />
+                    <button onclick="updateAd(${ad.id})">Replace</button>
+                    <button onclick="deleteAd(${ad.id})">Delete</button>
+                </div>`;
+            });
+            $('#adsList').html(html);
+        });
+    }
+    loadAds();
+    $('#uploadAdForm').submit(function(e){
+        e.preventDefault();
+        let formData = new FormData(this);
+        $.ajax({url:'/upload_ad',type:'POST',data:formData,contentType:false,processData:false,success:function(){ loadAds(); }});
+    });
+    window.setActive = function(id){ $.post('/set_active_ad/'+id, function(){ loadAds(); }); }
+    window.deleteAd = function(id){ $.post('/delete_ad/'+id, function(){ loadAds(); }); }
+    window.updateAd = function(id){
+        const fileInput = document.getElementById(`ad_file_${id}`);
+        if(fileInput.files.length===0){ alert("Select a file"); return; }
+        const formData = new FormData();
+        formData.append('ad_video', fileInput.files[0]);
+        $.ajax({
+            url:'/update_ad/'+id,
+            type:'POST',
+            data:formData,
+            contentType:false,
+            processData:false,
+            success:function(){ alert('Ad replaced successfully'); loadAds(); }
+        });
+    }
+
+    // -----------------------
+    // Analytics (4 Line Charts)
+    // -----------------------
+    let serviceChart, ticketsChart, waitChart, waitingTrendChart;
+
+    function loadAnalytics(){
+        $.get('/analytics', function(data){
+            // Summary
+            $('#totalServed').text(data.total_served_today);
+            $('#currentlyWaiting').text(data.currently_waiting_hourly.reduce((a,b)=>a+b,0));
+            $('#avgWait').text(Math.round(data.avg_wait_seconds/60));
+
+            const labels = [];
+            const serviceTimes = [];
+            const ticketsPerDesk = [];
+            const waitTimes = [];
+            data.avg_service_per_desk.forEach(d=>{
+                labels.push(d.desk);
+                serviceTimes.push(Math.round(d.avg_service_sec/60));
+                ticketsPerDesk.push(d.total_served || 0);
+                waitTimes.push(Math.round(d.avg_wait || 0));
+            });
+
+            const hourlyLabels = Array.from({length:24}, (_,i)=>i+"h");
+            const waitingTrend = data.currently_waiting_hourly;
+
+            // Chart 1: Avg Service Time
+            if(serviceChart){
+                serviceChart.data.labels = labels;
+                serviceChart.data.datasets[0].data = serviceTimes;
+                serviceChart.update();
+            } else {
+                const ctx = document.getElementById('serviceChart').getContext('2d');
+                serviceChart = new Chart(ctx,{
+                    type:'line',
+                    data:{labels:labels,datasets:[{label:'Avg Service Time (min)',data:serviceTimes,borderColor:'rgba(54,162,235,1)',backgroundColor:'rgba(54,162,235,0.2)',fill:true}]},
+                    options:{responsive:true,scales:{y:{beginAtZero:true}}}
+                });
+            }
+
+            // Chart 2: Tickets Served
+            if(ticketsChart){
+                ticketsChart.data.labels = labels;
+                ticketsChart.data.datasets[0].data = ticketsPerDesk;
+                ticketsChart.update();
+            } else {
+                const ctx = document.getElementById('ticketsChart').getContext('2d');
+                ticketsChart = new Chart(ctx,{
+                    type:'line',
+                    data:{labels:labels,datasets:[{label:'Tickets Served Today',data:ticketsPerDesk,borderColor:'rgba(75,192,192,1)',backgroundColor:'rgba(75,192,192,0.2)',fill:true}]},
+                    options:{responsive:true,scales:{y:{beginAtZero:true}}}
+                });
+            }
+
+            // Chart 3: Avg Waiting Time
+            if(waitChart){
+                waitChart.data.labels = labels;
+                waitChart.data.datasets[0].data = waitTimes;
+                waitChart.update();
+            } else {
+                const ctx = document.getElementById('waitChart').getContext('2d');
+                waitChart = new Chart(ctx,{
+                    type:'line',
+                    data:{labels:labels,datasets:[{label:'Avg Waiting Time (min)',data:waitTimes,borderColor:'rgba(255,159,64,1)',backgroundColor:'rgba(255,159,64,0.2)',fill:true}]},
+                    options:{responsive:true,scales:{y:{beginAtZero:true}}}
+                });
+            }
+
+            // Chart 4: Currently Waiting per Hour
+            if(waitingTrendChart){
+                waitingTrendChart.data.labels = hourlyLabels;
+                waitingTrendChart.data.datasets[0].data = waitingTrend;
+                waitingTrendChart.update();
+            } else {
+                const ctx = document.getElementById('waitingTrendChart').getContext('2d');
+                waitingTrendChart = new Chart(ctx,{
+                    type:'line',
+                    data:{labels:hourlyLabels,datasets:[{label:'Currently Waiting per Hour',data:waitingTrend,borderColor:'rgba(153,102,255,1)',backgroundColor:'rgba(153,102,255,0.2)',fill:true,tension:0.2}]},
+                    options:{responsive:true,scales:{y:{beginAtZero:true},x:{title:{display:true,text:'Hour of Day'}}}}
+                });
+            }
+        });
+    }
+
+    loadAnalytics();
+    setInterval(loadAnalytics,10000); // refresh every 10s
+});
+</script>
+
+</body>
+</html>

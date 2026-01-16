@@ -1,0 +1,9 @@
+body{font-family:'Segoe UI',Tahoma, Geneva, Verdana, sans-serif;background:#f7f9fc;color:#333;padding:20px;}
+h1,h2,h3{color:#2c3e50;}
+a{color:#2980b9;text-decoration:none;margin-bottom:20px;display:inline-block;}
+a:hover{text-decoration:underline;}
+form input, form button{padding:8px;margin:5px;border-radius:5px;border:1px solid #ccc;}
+form button{background:#2980b9;color:white;border:none;cursor:pointer;}
+form button:hover{background:#3498db;}
+table{width:100%;border-collapse:collapse;margin-top:10px;}
+table th, table td{padding:8px;border:1px solid #ccc;text-align:left;}

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Customer Ticket</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/styles.min.css') }}">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+</head>
+
+<body>
+
+    <div class="d-flex flex-column vh-100">
+        <div style="flex:3; position:relative; overflow:hidden; display:flex;">
+            <video id="adVideo" autoplay muted loop controlsList="nodownload"
+                style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover;">
+                <source id="adSource" src="" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+
+
+
+        <div style="flex:1" class="bg-dark text-white p-3">
+            <div class="row">
+
+                <!-- Waiting List (static) -->
+                <div class="col-6">
+                    <h5 class="text-center text-white mb-3">WAITING LIST</h5>
+                    <div id="waitingCards" class="d-flex flex-wrap justify-content-center gap-2">
+                        <!-- Cards will be generated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Serving Now (dynamic carousel) -->
+                <div class="col-6">
+                    <div id="servingCards" class="d-flex flex-wrap justify-content-center gap-2">
+                        <!-- Cards will cycle one at a time -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+<script>
+// ------------------- Video Ads -------------------
+function loadActiveAd() {
+    $.get('/get_active_ad', function (data) {
+        if (data.filename) {
+            $('#adSource').attr('src', '/static/ads/' + data.filename);
+            $('#adVideo')[0].load();
+        }
+    });
+}
+loadActiveAd();
+setInterval(loadActiveAd, 30000);
+
+// ------------------- Data Handling -------------------
+let desksData = [];
+let currentIndex = 0;
+
+// Keep track of announced ticket numbers
+let announcedTickets = new Set();
+
+// Control carousel pause while announcing
+let carouselPaused = false;
+
+// ------------------- Waiting List -------------------
+function updateWaitingList(waiting) {
+    let waitingHtml = '';
+    waiting.slice(0, 15).forEach(t => {
+        waitingHtml += `<div class="card text-center shadow-sm" style="width:70px;">
+                    <div class="card-body p-2">
+                        <h4 class="mb-0">${t}</h4>
+                    </div>
+                </div>`;
+    });
+    $('#waitingCards').html(waitingHtml);
+}
+
+// ------------------- Speech -------------------
+let announcementQueue = [];
+let isSpeaking = false;
+
+function announceTicket(ticket_number, desk_name) {
+    if (!ticket_number || !desk_name) return;
+
+    if (announcedTickets.has(ticket_number)) return;
+    announcedTickets.add(ticket_number);
+
+    const msgText = `Ticket number ${ticket_number} go to ${desk_name}`;
+    announcementQueue.push({ text: msgText, ticket_number, desk_name });
+    processQueue();
+}
+
+function processQueue() {
+    if (isSpeaking || announcementQueue.length === 0) return;
+
+    const next = announcementQueue.shift();
+    const text = next.text;
+    const ticket_number = next.ticket_number;
+    const desk_name = next.desk_name;
+
+    if ('speechSynthesis' in window) {
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.rate = 1;
+        msg.pitch = 1;
+
+        // Pick a female voice if available
+        const voices = window.speechSynthesis.getVoices();
+        const femaleVoice = voices.find(v => /female|woman|zira/i.test(v.name));
+        if (femaleVoice) msg.voice = femaleVoice;
+
+        // Show ticket in focus
+        showServingNowCard({ ticket_number, name: desk_name });
+
+        // Pause carousel while announcing
+        carouselPaused = true;
+
+        isSpeaking = true;
+        msg.onend = () => {
+            isSpeaking = false;
+            // Keep card in focus for 5 seconds before resuming carousel
+            setTimeout(() => {
+                carouselPaused = false;
+                processQueue();
+            }, 5000);
+        };
+
+        window.speechSynthesis.speak(msg);
+    }
+}
+
+// ------------------- Serving Now -------------------
+function showServingNowCard(d) {
+    if (!d || !d.ticket_number) return;
+    const html = `<div class="mt-5 d-flex justify-content-center">
+        <h1 class="mt-5 text-success">Ticket ${d.ticket_number} go to ${d.name}</h1>
+        </div>`;
+    $('#servingCards').fadeOut(200, function () {
+        $(this).html(html).fadeIn(500);
+    });
+}
+
+// ------------------- Load Status -------------------
+function loadStatus() {
+    $.get('/status', function (data) {
+        // Update Waiting List
+        updateWaitingList(data.waiting);
+
+        // Get desks with active tickets
+        const newDesks = data.desks.filter(d => d.ticket_number);
+
+        // Announce newly added tickets
+        newDesks.forEach(d => {
+            if (!announcedTickets.has(d.ticket_number)) {
+                announceTicket(d.ticket_number, d.name);
+            }
+        });
+
+        // Update desksData for cycling
+        desksData = newDesks;
+
+        // Show first card if nothing displayed
+        if (desksData.length > 0 && $('#servingCards').is(':empty')) {
+            currentIndex = 0;
+            showServingNowCard(desksData[currentIndex]);
+        }
+    });
+}
+
+// ------------------- Initial Load -------------------
+loadStatus();
+setInterval(loadStatus, 3000);
+
+// ------------------- Carousel -------------------
+setInterval(function () {
+    if (desksData.length === 0) return;
+    if (carouselPaused) return; // pause when announcement is in focus
+
+    currentIndex = (currentIndex + 1) % desksData.length;
+    showServingNowCard(desksData[currentIndex]);
+}, 10000);
+
+// Ensure voices are loaded for speech synthesis
+window.speechSynthesis.onvoiceschanged = () => { console.log("Voices loaded"); };
+
+
+    </script>
+
+
+</body>
+
+</html>

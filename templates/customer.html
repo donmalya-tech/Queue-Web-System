@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Customer Ticket</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/styles.min.css') }}">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<body>
+
+<div class="container d-flex justify-content-center align-items-center vh-100">
+    <div class="card shadow-sm" style="width: 20rem;">
+
+        <!-- Image -->
+        <img src="{{ url_for('static', filename='assets/images/products/s4.jpg') }}"
+             class="card-img-top"
+             style="height:200px; object-fit:cover;"
+             alt="Ticket">
+
+        <div class="card-body text-center">
+            <h5 class="card-title">Welcome</h5>
+            <p class="card-text">Click below to get your ticket</p>
+
+            <!-- One button -->
+            <button id="ticketBtn" class="btn btn-primary w-100">
+                Get your ticket
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden ticket for printing -->
+<div id="ticketDiv" style="display:none;">
+    <h3 id="systemName"></h3>
+    <p id="systemLocation"></p>
+    <h2>Ticket #<span id="ticketNum"></span></h2>
+    <p>Date: <span id="ticketDate"></span></p>
+</div>
+
+
+<script>
+function updateWaitingList() {
+    $.get('/status', function (data) {
+        let list = '';
+        data.waiting.forEach(ticket => {
+            list += `<li>Ticket ${ticket}</li>`;
+        });
+        $('#waitingList').html(list);
+    });
+}
+
+$('#ticketBtn').click(function () {
+    $.post('/get_ticket', function (data) {
+        $('#ticketNum').text(data.ticket_number);
+        $('#ticketDate').text(new Date().toLocaleString());
+        $('#systemName').text(data.system_name);
+        $('#systemLocation').text(data.system_location);
+
+        // Print ticket
+        let printContents = document.getElementById('ticketDiv').innerHTML;
+        let originalContents = document.body.innerHTML;
+
+        document.body.innerHTML = `
+            <div style="text-align:center; font-family:Arial;">
+                ${printContents}
+            </div>
+        `;
+        window.print();
+        document.body.innerHTML = originalContents;
+        location.reload();
+    });
+});
+
+// Auto-refresh waiting list
+setInterval(updateWaitingList, 3000);
+</script>
+
+</body>
+</html>
