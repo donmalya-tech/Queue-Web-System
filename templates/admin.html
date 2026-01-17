@@ -1,158 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Admin Dashboard</title>
-
-<!-- Bootstrap -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- jQuery -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<style>
-    body {
-        background: #f5f6fa;
-    }
-    .card {
-        border-radius: 12px;
-    }
-</style>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
+<h1>Admin Dashboard</h1>
+<a href="{{ url_for('logout') }}">Logout</a>
 
-<nav class="navbar navbar-dark bg-dark px-4">
-    <span class="navbar-brand fw-bold">🎛 Admin Dashboard</span>
-    <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
-</nav>
+<!-- System Info -->
+<h2>System Info</h2>
+<form id="systemInfoForm">
+    <input type="text" name="name" placeholder="System Name" required>
+    <input type="text" name="location" placeholder="Location" required>
+    <button type="submit">Update</button>
+</form>
 
-<div class="container-fluid mt-4">
+<!-- User Management -->
+<h2>Manage Staff Users</h2>
+<form id="addUserForm">
+    <input type="text" name="username" placeholder="Username" required>
+    <input type="password" name="password" placeholder="Password" required>
+    <button type="submit">Add Staff</button>
+</form>
+<div id="usersList"></div>
 
-    <!-- ===================== System Info ===================== -->
-    <div class="card mb-4">
-        <div class="card-header fw-bold">System Information</div>
-        <div class="card-body">
-            <form id="systemInfoForm" class="row g-3">
-                <div class="col-md-5">
-                    <input type="text" class="form-control" name="name" placeholder="System Name" required>
-                </div>
-                <div class="col-md-5">
-                    <input type="text" class="form-control" name="location" placeholder="Location" required>
-                </div>
-                <div class="col-md-2">
-                    <button class="btn btn-primary w-100">Update</button>
-                </div>
-            </form>
-        </div>
-    </div>
+<!-- Desk Management -->
+<h2>Manage Desks</h2>
+<form id="addDeskForm">
+    <input type="text" name="name" placeholder="Desk Name" required>
+    <button type="submit">Add Desk</button>
+</form>
+<div id="desksList"></div>
 
-    <div class="row">
+<!-- Ads Management -->
+<h2>Manage Ads</h2>
+<form id="uploadAdForm" enctype="multipart/form-data">
+    <input type="file" name="ad_video" accept="video/mp4" required>
+    <button type="submit">Upload Ad</button>
+</form>
+<div id="adsList"></div>
 
-        <!-- ===================== Staff Users ===================== -->
-        <div class="col-lg-4">
-            <div class="card mb-4">
-                <div class="card-header fw-bold">Staff Users</div>
-                <div class="card-body">
-                    <form id="addUserForm" class="mb-3">
-                        <input class="form-control mb-2" name="username" placeholder="Username" required>
-                        <input class="form-control mb-2" type="password" name="password" placeholder="Password" required>
-                        <button class="btn btn-success w-100">Add Staff</button>
-                    </form>
-                    <div id="usersList"></div>
-                </div>
-            </div>
-        </div>
+<!-- Analytics Summary -->
+<h2>Analytics Summary</h2>
+<p>Total Served Today: <span id="totalServed"></span></p>
+<p>Currently Waiting: <span id="currentlyWaiting"></span></p>
+<p>Average Waiting Time: <span id="avgWait"></span> min</p>
 
-        <!-- ===================== Desks ===================== -->
-        <div class="col-lg-4">
-            <div class="card mb-4">
-                <div class="card-header fw-bold">Service Desks</div>
-                <div class="card-body">
-                    <form id="addDeskForm" class="mb-3">
-                        <input class="form-control mb-2" name="name" placeholder="Desk Name" required>
-                        <button class="btn btn-success w-100">Add Desk</button>
-                    </form>
-                    <div id="desksList"></div>
-                </div>
-            </div>
-        </div>
+<!-- Charts -->
+<h3>1. Average Service Time per Desk (min)</h3>
+<canvas id="serviceChart" width="400" height="200"></canvas>
 
-        <!-- ===================== Ads ===================== -->
-        <div class="col-lg-4">
-            <div class="card mb-4">
-                <div class="card-header fw-bold">Video Ads</div>
-                <div class="card-body">
-                    <form id="uploadAdForm" enctype="multipart/form-data" class="mb-3">
-                        <input class="form-control mb-2" type="file" name="ad_video" accept="video/mp4" required>
-                        <button class="btn btn-primary w-100">Upload Ad</button>
-                    </form>
-                    <div id="adsList"></div>
-                </div>
-            </div>
-        </div>
+<h3>2. Tickets Served Today per Desk</h3>
+<canvas id="ticketsChart" width="400" height="200"></canvas>
 
-    </div>
+<h3>3. Average Waiting Time per Desk (min)</h3>
+<canvas id="waitChart" width="400" height="200"></canvas>
 
-    <!-- ===================== Analytics Summary ===================== -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card text-center p-3">
-                <h6>Total Served Today</h6>
-                <h2 id="totalServed">0</h2>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card text-center p-3">
-                <h6>Currently Waiting</h6>
-                <h2 id="currentlyWaiting">0</h2>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card text-center p-3">
-                <h6>Average Waiting Time (min)</h6>
-                <h2 id="avgWait">0</h2>
-            </div>
-        </div>
-    </div>
+<h3>4. Currently Waiting Customers per Hour</h3>
+<canvas id="waitingTrendChart" width="400" height="200"></canvas>
 
-    <!-- ===================== Charts ===================== -->
-    <div class="row">
-        <div class="col-lg-6 mb-4">
-            <div class="card p-3">
-                <h6>Average Service Time per Desk</h6>
-                <canvas id="serviceChart"></canvas>
-            </div>
-        </div>
-
-        <div class="col-lg-6 mb-4">
-            <div class="card p-3">
-                <h6>Tickets Served Today</h6>
-                <canvas id="ticketsChart"></canvas>
-            </div>
-        </div>
-
-        <div class="col-lg-6 mb-4">
-            <div class="card p-3">
-                <h6>Average Waiting Time per Desk</h6>
-                <canvas id="waitChart"></canvas>
-            </div>
-        </div>
-
-        <div class="col-lg-6 mb-4">
-            <div class="card p-3">
-                <h6>Waiting Trend (Hourly)</h6>
-                <canvas id="waitingTrendChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-</div>
-
-<!-- ===================== JS LOGIC (UNCHANGED) ===================== -->
 <script>
 $(document).ready(function(){
     // -----------------------
@@ -357,6 +267,5 @@ $(document).ready(function(){
     setInterval(loadAnalytics,10000); // refresh every 10s
 });
 </script>
-
 </body>
 </html>
