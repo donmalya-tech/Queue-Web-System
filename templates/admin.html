@@ -1,79 +1,227 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="UTF-8">
+<title>Modern Admin Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body { font-family: 'Segoe UI', sans-serif; background-color: #f8f9fa; }
+.sidebar { height: 100vh; width: 240px; position: fixed; top: 0; left: 0; background: #111827; color: #cbd5e1; transition: all 0.3s; padding-top: 1rem;}
+.sidebar.collapsed { width: 70px; }
+.sidebar .nav-link { color: #cbd5e1; display: flex; align-items: center; padding: 12px 20px; }
+.sidebar .nav-link i { margin-right: 10px; font-size: 18px; }
+.sidebar .nav-link.active { background-color: #3b82f6; border-radius: 8px; color: white; }
+.sidebar .nav-link:hover { background-color: #1f2937; border-radius: 8px; }
+.main-content { margin-left: 240px; padding: 20px; transition: all 0.3s; }
+.main-content.collapsed { margin-left: 70px; }
+.card.kpi { border-radius: 1rem; color: white; text-align: center; padding: 20px; box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,0.1);}
+.card.kpi h3 { font-size: 2.2rem; font-weight: bold;}
+.card.kpi h6 { font-weight: 500; }
+.table thead { border-bottom: 2px solid #dee2e6; }
+.table tbody tr:hover { background-color: rgba(59, 130, 246, 0.1); }
+.toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 1055; }
+.sidebar-toggle { position: absolute; top: 10px; right: -20px; background: #3b82f6; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white; }
+</style>
 </head>
 <body>
-<h1>Admin Dashboard</h1>
-<a href="{{ url_for('logout') }}">Logout</a>
 
-<!-- System Info -->
-<h2>System Info</h2>
-<form id="systemInfoForm">
-    <input type="text" name="name" placeholder="System Name" required>
-    <input type="text" name="location" placeholder="Location" required>
-    <button type="submit">Update</button>
-</form>
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-toggle" id="toggleSidebar"><i class="bi bi-list"></i></div>
+    <h4 class="text-center fw-bold py-3">🚀</h4>
+    <nav class="nav flex-column">
+        <a class="nav-link active" href="#" data-section="dashboard"><i class="bi bi-speedometer2"></i> <span class="link-text">Dashboard</span></a>
+        <a class="nav-link" href="#" data-section="users"><i class="bi bi-people"></i> <span class="link-text">Users</span></a>
+        <a class="nav-link" href="#" data-section="desks"><i class="bi bi-diagram-3"></i> <span class="link-text">Desks</span></a>
+        <a class="nav-link" href="#" data-section="ads"><i class="bi bi-camera-video"></i> <span class="link-text">Ads</span></a>
+        <a class="nav-link" href="#" data-section="analytics"><i class="bi bi-bar-chart-line"></i> <span class="link-text">Analytics</span></a>
+        <a class="nav-link mt-auto text-danger" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> <span class="link-text">Logout</span></a>
+    </nav>
+</div>
 
-<!-- User Management -->
-<h2>Manage Staff Users</h2>
-<form id="addUserForm">
-    <input type="text" name="username" placeholder="Username" required>
-    <input type="password" name="password" placeholder="Password" required>
-    <button type="submit">Add Staff</button>
-</form>
-<div id="usersList"></div>
+<div class="main-content" id="mainContent">
 
-<!-- Desk Management -->
-<h2>Manage Desks</h2>
-<form id="addDeskForm">
-    <input type="text" name="name" placeholder="Desk Name" required>
-    <button type="submit">Add Desk</button>
-</form>
-<div id="desksList"></div>
+<!-- DASHBOARD -->
+<div class="section" id="dashboard">
+    <h2 class="mb-4">Dashboard Overview</h2>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card kpi" style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
+                <h6>Total Served</h6>
+                <h3 id="totalServed">0</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card kpi" style="background: linear-gradient(135deg, #10b981, #34d399);">
+                <h6>Currently Waiting</h6>
+                <h3 id="currentlyWaiting">0</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card kpi" style="background: linear-gradient(135deg, #f59e0b, #fbbf24);">
+                <h6>Avg Wait (min)</h6>
+                <h3 id="avgWait">0</h3>
+            </div>
+        </div>
+    </div>
+</div>
 
-<!-- Ads Management -->
-<h2>Manage Ads</h2>
-<form id="uploadAdForm" enctype="multipart/form-data">
-    <input type="file" name="ad_video" accept="video/mp4" required>
-    <button type="submit">Upload Ad</button>
-</form>
-<div id="adsList"></div>
+<!-- USERS TABLE -->
+<div class="section d-none" id="users">
+    <h2 class="mb-3">Staff Users</h2>
+    <button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#userModal" onclick="openUserModal()">Add User</button>
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle shadow-sm">
+            <thead class="table-dark">
+                <tr><th>#</th><th>Username</th><th width="200">Actions</th></tr>
+            </thead>
+            <tbody id="usersList"></tbody>
+        </table>
+    </div>
+</div>
 
-<!-- Analytics Summary -->
-<h2>Analytics Summary</h2>
-<p>Total Served Today: <span id="totalServed"></span></p>
-<p>Currently Waiting: <span id="currentlyWaiting"></span></p>
-<p>Average Waiting Time: <span id="avgWait"></span> min</p>
+<!-- DESKS TABLE -->
+<div class="section d-none" id="desks">
+    <h2 class="mb-3">Service Desks</h2>
+    <button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#deskModal" onclick="openDeskModal()">Add Desk</button>
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle shadow-sm">
+            <thead class="table-dark">
+                <tr><th>#</th><th>Desk</th><th width="200">Actions</th></tr>
+            </thead>
+            <tbody id="desksList"></tbody>
+        </table>
+    </div>
+</div>
 
-<!-- Charts -->
-<h3>1. Average Service Time per Desk (min)</h3>
-<canvas id="serviceChart" width="400" height="200"></canvas>
+<!-- ADS TABLE -->
+<div class="section d-none" id="ads">
+    <h2 class="mb-3">Advertisements</h2>
+    <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#adModal" onclick="openAdModal()">Upload Ad</button>
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle shadow-sm">
+            <thead class="table-dark">
+                <tr><th>#</th><th>Filename</th><th width="300">Actions</th></tr>
+            </thead>
+            <tbody id="adsList"></tbody>
+        </table>
+    </div>
+</div>
 
-<h3>2. Tickets Served Today per Desk</h3>
-<canvas id="ticketsChart" width="400" height="200"></canvas>
+<!-- ANALYTICS -->
+<div class="section d-none" id="analytics">
+    <h2 class="mb-3">Analytics</h2>
+    <div class="row g-4">
+        <div class="col-md-6"><div class="card p-3 shadow-sm"><canvas id="serviceChart"></canvas></div></div>
+        <div class="col-md-6"><div class="card p-3 shadow-sm"><canvas id="ticketsChart"></canvas></div></div>
+        <div class="col-md-6"><div class="card p-3 shadow-sm"><canvas id="waitChart"></canvas></div></div>
+        <div class="col-md-6"><div class="card p-3 shadow-sm"><canvas id="waitingTrendChart"></canvas></div></div>
+    </div>
+</div>
 
-<h3>3. Average Waiting Time per Desk (min)</h3>
-<canvas id="waitChart" width="400" height="200"></canvas>
+</div>
 
-<h3>4. Currently Waiting Customers per Hour</h3>
-<canvas id="waitingTrendChart" width="400" height="200"></canvas>
+<!-- MODALS -->
+
+<!-- User Modal -->
+<div class="modal fade" id="userModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form id="userForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="userModalTitle">Add User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="userId">
+        <div class="mb-3"><input type="text" class="form-control" id="usernameInput" placeholder="Username" required></div>
+        <div class="mb-3"><input type="password" class="form-control" id="passwordInput" placeholder="Password"></div>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-success">Save</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Desk Modal -->
+<div class="modal fade" id="deskModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form id="deskForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deskModalTitle">Add Desk</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="deskId">
+        <div class="mb-3"><input type="text" class="form-control" id="deskNameInput" placeholder="Desk Name" required></div>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-success">Save</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Ad Modal -->
+<div class="modal fade" id="adModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form id="adForm" class="modal-content" enctype="multipart/form-data">
+      <div class="modal-header">
+        <h5 class="modal-title">Upload Advertisement</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="file" class="form-control" id="adFileInput" name="ad_video" accept="video/mp4" required>
+      </div>
+      <div class="modal-footer"><button type="submit" class="btn btn-primary">Upload</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+// SIDEBAR TOGGLE
+$('#toggleSidebar').click(function(){
+    $('#sidebar').toggleClass('collapsed');
+    $('#mainContent').toggleClass('collapsed');
+    $('.link-text').toggle();
+});
+
+// NAVIGATION
+$('.nav-link').click(function(){
+    $('.nav-link').removeClass('active');
+    $(this).addClass('active');
+    $('.section').addClass('d-none');
+    $('#' + $(this).data('section')).removeClass('d-none');
+});
+
+// TOAST
+function showToast(msg,type='success'){
+    const id='toast'+Date.now();
+    const html=`<div id="${id}" class="toast align-items-center text-bg-${type} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">${msg}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>`;
+    $('#toastContainer').append(html);
+    new bootstrap.Toast(document.getElementById(id),{delay:3000}).show();
+}
+
+// MODALS
+function openUserModal(id=null){
+    if(id){ $('#userModalTitle').text('Edit User'); $('#userId').val(id); $('#usernameInput').val($('#username_'+id).text()); $('#passwordInput').val(''); }
+    else{ $('#userModalTitle').text('Add User'); $('#userId').val(''); $('#usernameInput').val(''); $('#passwordInput').val(''); }
+}
+function openDeskModal(id=null){
+    if(id){ $('#deskModalTitle').text('Edit Desk'); $('#deskId').val(id); $('#deskNameInput').val($('#desk_'+id).text()); }
+    else{ $('#deskModalTitle').text('Add Desk'); $('#deskId').val(''); $('#deskNameInput').val(''); }
+}
+function openAdModal(){ $('#adFileInput').val(''); }
+
 $(document).ready(function(){
-    // -----------------------
-    // System Info
-    // -----------------------
-    $('#systemInfoForm').submit(function(e){
-        e.preventDefault();
-        $.post('/update_system_info', $(this).serialize(), function(){
-            alert('System info updated');
-        });
-    });
 
     // -----------------------
     // User Management
@@ -81,13 +229,15 @@ $(document).ready(function(){
     function loadUsers(){
         $.get('/users', function(data){
             let html='';
-            data.forEach(u=>{
-                html += `
-                <div>
-                    <input type="text" id="username_${u.id}" value="${u.username}" />
-                    <button onclick="updateUser(${u.id})">Save</button>
-                    <button onclick="deleteUser(${u.id})">Delete</button>
-                </div>`;
+            data.forEach((u,i)=>{
+                html += `<tr>
+                    <td>${i+1}</td>
+                    <td><input class="form-control form-control-sm" id="username_${u.id}" value="${u.username}"></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="updateUser(${u.id})">Save</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Delete</button>
+                    </td>
+                </tr>`;
             });
             $('#usersList').html(html);
         });
@@ -97,13 +247,10 @@ $(document).ready(function(){
         e.preventDefault();
         $.post('/add_user', $(this).serialize(), function(){ loadUsers(); });
     });
-    window.deleteUser = function(id){ $.post('/delete_user/'+id, function(){ loadUsers(); }); }
-    window.updateUser = function(id){
-        const newUsername = $(`#username_${id}`).val();
-        $.post('/update_user/'+id, {username: newUsername}, function(){
-            alert('User updated successfully');
-            loadUsers();
-        });
+    window.deleteUser=function(id){ $.post('/delete_user/'+id,function(){loadUsers();}); }
+    window.updateUser=function(id){
+        const username=$(`#username_${id}`).val();
+        $.post('/update_user/'+id,{username:username},function(){loadUsers(); alert('User updated successfully');});
     }
 
     // -----------------------
@@ -112,13 +259,15 @@ $(document).ready(function(){
     function loadDesks(){
         $.get('/desks', function(data){
             let html='';
-            data.forEach(d=>{
-                html += `
-                <div>
-                    <input type="text" id="desk_${d.id}" value="${d.name}" />
-                    <button onclick="updateDesk(${d.id})">Save</button>
-                    <button onclick="deleteDesk(${d.id})">Delete</button>
-                </div>`;
+            data.forEach((d,i)=>{
+                html += `<tr>
+                    <td>${i+1}</td>
+                    <td><input class="form-control form-control-sm" id="desk_${d.id}" value="${d.name}"></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="updateDesk(${d.id})">Save</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteDesk(${d.id})">Delete</button>
+                    </td>
+                </tr>`;
             });
             $('#desksList').html(html);
         });
@@ -128,13 +277,10 @@ $(document).ready(function(){
         e.preventDefault();
         $.post('/add_desk', $(this).serialize(), function(){ loadDesks(); });
     });
-    window.deleteDesk = function(id){ $.post('/delete_desk/'+id, function(){ loadDesks(); }); }
-    window.updateDesk = function(id){
-        const newName = $(`#desk_${id}`).val();
-        $.post('/update_desk/'+id, {name: newName}, function(){
-            alert('Desk updated successfully');
-            loadDesks();
-        });
+    window.deleteDesk=function(id){ $.post('/delete_desk/'+id,function(){loadDesks();}); }
+    window.updateDesk=function(id){
+        const name=$(`#desk_${id}`).val();
+        $.post('/update_desk/'+id,{name:name},function(){loadDesks(); alert('Desk updated successfully');});
     }
 
     // -----------------------
@@ -143,15 +289,17 @@ $(document).ready(function(){
     function loadAds(){
         $.get('/list_ads', function(data){
             let html='';
-            data.forEach(ad=>{
-                html += `
-                <div>
-                    ${ad.filename} 
-                    <button onclick="setActive(${ad.id})">Play</button>
-                    <input type="file" id="ad_file_${ad.id}" accept="video/mp4" />
-                    <button onclick="updateAd(${ad.id})">Replace</button>
-                    <button onclick="deleteAd(${ad.id})">Delete</button>
-                </div>`;
+            data.forEach((ad,i)=>{
+                html += `<tr>
+                    <td>${i+1}</td>
+                    <td>${ad.filename}</td>
+                    <td>
+                        <button class="btn btn-sm btn-success" onclick="setActive(${ad.id})">Play</button>
+                        <input type="file" class="form-control form-control-sm d-inline w-50" id="ad_file_${ad.id}" accept="video/mp4">
+                        <button class="btn btn-sm btn-warning" onclick="updateAd(${ad.id})">Replace</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteAd(${ad.id})">Delete</button>
+                    </td>
+                </tr>`;
             });
             $('#adsList').html(html);
         });
@@ -159,112 +307,71 @@ $(document).ready(function(){
     loadAds();
     $('#uploadAdForm').submit(function(e){
         e.preventDefault();
-        let formData = new FormData(this);
-        $.ajax({url:'/upload_ad',type:'POST',data:formData,contentType:false,processData:false,success:function(){ loadAds(); }});
+        let formData=new FormData(this);
+        $.ajax({url:'/upload_ad',type:'POST',data:formData,contentType:false,processData:false,success:function(){loadAds();}});
     });
-    window.setActive = function(id){ $.post('/set_active_ad/'+id, function(){ loadAds(); }); }
-    window.deleteAd = function(id){ $.post('/delete_ad/'+id, function(){ loadAds(); }); }
-    window.updateAd = function(id){
-        const fileInput = document.getElementById(`ad_file_${id}`);
+    window.setActive=function(id){ $.post('/set_active_ad/'+id,function(){loadAds();}); }
+    window.deleteAd=function(id){ $.post('/delete_ad/'+id,function(){loadAds();}); }
+    window.updateAd=function(id){
+        const fileInput=document.getElementById(`ad_file_${id}`);
         if(fileInput.files.length===0){ alert("Select a file"); return; }
-        const formData = new FormData();
-        formData.append('ad_video', fileInput.files[0]);
-        $.ajax({
-            url:'/update_ad/'+id,
-            type:'POST',
-            data:formData,
-            contentType:false,
-            processData:false,
-            success:function(){ alert('Ad replaced successfully'); loadAds(); }
-        });
+        const formData=new FormData();
+        formData.append('ad_video',fileInput.files[0]);
+        $.ajax({url:'/update_ad/'+id,type:'POST',data:formData,contentType:false,processData:false,success:function(){alert('Ad replaced successfully'); loadAds();}});
     }
 
     // -----------------------
-    // Analytics (4 Line Charts)
+    // Analytics
     // -----------------------
     let serviceChart, ticketsChart, waitChart, waitingTrendChart;
-
     function loadAnalytics(){
         $.get('/analytics', function(data){
-            // Summary
             $('#totalServed').text(data.total_served_today);
             $('#currentlyWaiting').text(data.currently_waiting_hourly.reduce((a,b)=>a+b,0));
             $('#avgWait').text(Math.round(data.avg_wait_seconds/60));
 
-            const labels = [];
-            const serviceTimes = [];
-            const ticketsPerDesk = [];
-            const waitTimes = [];
+            const labels=[], serviceTimes=[], ticketsPerDesk=[], waitTimes=[];
             data.avg_service_per_desk.forEach(d=>{
                 labels.push(d.desk);
                 serviceTimes.push(Math.round(d.avg_service_sec/60));
-                ticketsPerDesk.push(d.total_served || 0);
-                waitTimes.push(Math.round(d.avg_wait || 0));
+                ticketsPerDesk.push(d.total_served||0);
+                waitTimes.push(Math.round(d.avg_wait||0));
             });
+            const hourlyLabels=Array.from({length:24},(_,i)=>i+"h");
+            const waitingTrend=data.currently_waiting_hourly;
 
-            const hourlyLabels = Array.from({length:24}, (_,i)=>i+"h");
-            const waitingTrend = data.currently_waiting_hourly;
-
-            // Chart 1: Avg Service Time
-            if(serviceChart){
-                serviceChart.data.labels = labels;
-                serviceChart.data.datasets[0].data = serviceTimes;
-                serviceChart.update();
-            } else {
-                const ctx = document.getElementById('serviceChart').getContext('2d');
-                serviceChart = new Chart(ctx,{
-                    type:'line',
-                    data:{labels:labels,datasets:[{label:'Avg Service Time (min)',data:serviceTimes,borderColor:'rgba(54,162,235,1)',backgroundColor:'rgba(54,162,235,0.2)',fill:true}]},
-                    options:{responsive:true,scales:{y:{beginAtZero:true}}}
-                });
+            // Chart 1
+            if(serviceChart){ serviceChart.data.labels=labels; serviceChart.data.datasets[0].data=serviceTimes; serviceChart.update();}
+            else{
+                const ctx=document.getElementById('serviceChart').getContext('2d');
+                serviceChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Avg Service Time (min)',data:serviceTimes,borderColor:'rgba(54,162,235,1)',backgroundColor:'rgba(54,162,235,0.2)',fill:true}]},options:{responsive:true,scales:{y:{beginAtZero:true}}}});
             }
 
-            // Chart 2: Tickets Served
-            if(ticketsChart){
-                ticketsChart.data.labels = labels;
-                ticketsChart.data.datasets[0].data = ticketsPerDesk;
-                ticketsChart.update();
-            } else {
-                const ctx = document.getElementById('ticketsChart').getContext('2d');
-                ticketsChart = new Chart(ctx,{
-                    type:'line',
-                    data:{labels:labels,datasets:[{label:'Tickets Served Today',data:ticketsPerDesk,borderColor:'rgba(75,192,192,1)',backgroundColor:'rgba(75,192,192,0.2)',fill:true}]},
-                    options:{responsive:true,scales:{y:{beginAtZero:true}}}
-                });
+            // Chart 2
+            if(ticketsChart){ ticketsChart.data.labels=labels; ticketsChart.data.datasets[0].data=ticketsPerDesk; ticketsChart.update();}
+            else{
+                const ctx=document.getElementById('ticketsChart').getContext('2d');
+                ticketsChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Tickets Served Today',data:ticketsPerDesk,borderColor:'rgba(75,192,192,1)',backgroundColor:'rgba(75,192,192,0.2)',fill:true}]},options:{responsive:true,scales:{y:{beginAtZero:true}}}});
             }
 
-            // Chart 3: Avg Waiting Time
-            if(waitChart){
-                waitChart.data.labels = labels;
-                waitChart.data.datasets[0].data = waitTimes;
-                waitChart.update();
-            } else {
-                const ctx = document.getElementById('waitChart').getContext('2d');
-                waitChart = new Chart(ctx,{
-                    type:'line',
-                    data:{labels:labels,datasets:[{label:'Avg Waiting Time (min)',data:waitTimes,borderColor:'rgba(255,159,64,1)',backgroundColor:'rgba(255,159,64,0.2)',fill:true}]},
-                    options:{responsive:true,scales:{y:{beginAtZero:true}}}
-                });
+            // Chart 3
+            if(waitChart){ waitChart.data.labels=labels; waitChart.data.datasets[0].data=waitTimes; waitChart.update();}
+            else{
+                const ctx=document.getElementById('waitChart').getContext('2d');
+                waitChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Avg Waiting Time (min)',data:waitTimes,borderColor:'rgba(255,159,64,1)',backgroundColor:'rgba(255,159,64,0.2)',fill:true}]},options:{responsive:true,scales:{y:{beginAtZero:true}}}});
             }
 
-            // Chart 4: Currently Waiting per Hour
-            if(waitingTrendChart){
-                waitingTrendChart.data.labels = hourlyLabels;
-                waitingTrendChart.data.datasets[0].data = waitingTrend;
-                waitingTrendChart.update();
-            } else {
-                const ctx = document.getElementById('waitingTrendChart').getContext('2d');
-                waitingTrendChart = new Chart(ctx,{
-                    type:'line',
-                    data:{labels:hourlyLabels,datasets:[{label:'Currently Waiting per Hour',data:waitingTrend,borderColor:'rgba(153,102,255,1)',backgroundColor:'rgba(153,102,255,0.2)',fill:true,tension:0.2}]},
-                    options:{responsive:true,scales:{y:{beginAtZero:true},x:{title:{display:true,text:'Hour of Day'}}}}
-                });
+            // Chart 4
+            if(waitingTrendChart){ waitingTrendChart.data.labels=hourlyLabels; waitingTrendChart.data.datasets[0].data=waitingTrend; waitingTrendChart.update();}
+            else{
+                const ctx=document.getElementById('waitingTrendChart').getContext('2d');
+                waitingTrendChart=new Chart(ctx,{type:'line',data:{labels:hourlyLabels,datasets:[{label:'Currently Waiting per Hour',data:waitingTrend,borderColor:'rgba(153,102,255,1)',backgroundColor:'rgba(153,102,255,0.2)',fill:true,tension:0.2}]},options:{responsive:true,scales:{y:{beginAtZero:true},x:{title:{display:true,text:'Hour of Day'}}}}});
             }
         });
     }
-
     loadAnalytics();
     setInterval(loadAnalytics,10000); // refresh every 10s
+
 });
 </script>
 </body>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Modern Admin Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #f8f9fa;
+}
+.sidebar {
+    height: 100vh;
+    width: 240px;
+    position: fixed;
+    top: 0; left: 0;
+    background: #111827;
+    color: #cbd5e1;
+    transition: all 0.3s;
+}
+.sidebar.collapsed { width: 70px; }
+.sidebar .nav-link {
+    color: #cbd5e1;
+    display: flex; align-items: center; padding: 12px 20px;
+}
+.sidebar .nav-link i { margin-right: 10px; font-size: 18px; }
+.sidebar .nav-link.active { background-color: #3b82f6; border-radius: 8px; color: white; }
+.sidebar .nav-link:hover { background-color: #1f2937; border-radius: 8px; }
+.main-content { margin-left: 240px; padding: 20px; transition: all 0.3s; }
+.main-content.collapsed { margin-left: 70px; }
+
+.card.kpi { border-radius: 1rem; color: white; text-align: center; padding: 20px; box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,0.1);}
+.card.kpi h3 { font-size: 2.2rem; font-weight: bold;}
+.card.kpi h6 { font-weight: 500; }
+
+.table thead { border-bottom: 2px solid #dee2e6; }
+.table tbody tr:hover { background-color: rgba(59, 130, 246, 0.1); }
+
+.toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 1055; }
+
+.sidebar-toggle {
+    position: absolute;
+    top: 10px; right: -20px;
+    background: #3b82f6;
+    border-radius: 50%;
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: white;
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-toggle" id="toggleSidebar"><i class="bi bi-list"></i></div>
+    <h4 class="text-center fw-bold py-3">🚀</h4>
+    <nav class="nav flex-column">
+        <a class="nav-link active" href="#" data-section="dashboard"><i class="bi bi-speedometer2"></i> <span class="link-text">Dashboard</span></a>
+        <a class="nav-link" href="#" data-section="users"><i class="bi bi-people"></i> <span class="link-text">Users</span></a>
+        <a class="nav-link" href="#" data-section="desks"><i class="bi bi-diagram-3"></i> <span class="link-text">Desks</span></a>
+        <a class="nav-link" href="#" data-section="ads"><i class="bi bi-camera-video"></i> <span class="link-text">Ads</span></a>
+        <a class="nav-link" href="#" data-section="analytics"><i class="bi bi-bar-chart-line"></i> <span class="link-text">Analytics</span></a>
+        <a class="nav-link mt-auto text-danger" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> <span class="link-text">Logout</span></a>
+    </nav>
+</div>
+
+<div class="main-content" id="mainContent">
+
+<!-- DASHBOARD -->
+<div class="section" id="dashboard">
+    <h2 class="mb-4">Dashboard Overview</h2>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card kpi" style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
+                <h6>Total Served</h6>
+                <h3 id="totalServed">0</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card kpi" style="background: linear-gradient(135deg, #10b981, #34d399);">
+                <h6>Currently Waiting</h6>
+                <h3 id="currentlyWaiting">0</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card kpi" style="background: linear-gradient(135deg, #f59e0b, #fbbf24);">
+                <h6>Avg Wait (min)</h6>
+                <h3 id="avgWait">0</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- USERS TABLE -->
+<div class="section d-none" id="users">
+    <h2 class="mb-3">Staff Users</h2>
+    <button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#userModal" onclick="openUserModal()">Add User</button>
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle shadow-sm">
+            <thead class="table-dark">
+                <tr><th>#</th><th>Username</th><th width="200">Actions</th></tr>
+            </thead>
+            <tbody id="usersList"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- DESKS TABLE -->
+<div class="section d-none" id="desks">
+    <h2 class="mb-3">Service Desks</h2>
+    <button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#deskModal" onclick="openDeskModal()">Add Desk</button>
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle shadow-sm">
+            <thead class="table-dark">
+                <tr><th>#</th><th>Desk</th><th width="200">Actions</th></tr>
+            </thead>
+            <tbody id="desksList"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ADS TABLE -->
+<div class="section d-none" id="ads">
+    <h2 class="mb-3">Advertisements</h2>
+    <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#adModal" onclick="openAdModal()">Upload Ad</button>
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle shadow-sm">
+            <thead class="table-dark">
+                <tr><th>#</th><th>Filename</th><th width="300">Actions</th></tr>
+            </thead>
+            <tbody id="adsList"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ANALYTICS -->
+<div class="section d-none" id="analytics">
+    <h2 class="mb-3">Analytics</h2>
+    <div class="row g-4">
+        <div class="col-md-6"><div class="card p-3 shadow-sm"><canvas id="serviceChart"></canvas></div></div>
+        <div class="col-md-6"><div class="card p-3 shadow-sm"><canvas id="ticketsChart"></canvas></div></div>
+        <div class="col-md-6"><div class="card p-3 shadow-sm"><canvas id="waitChart"></canvas></div></div>
+        <div class="col-md-6"><div class="card p-3 shadow-sm"><canvas id="waitingTrendChart"></canvas></div></div>
+    </div>
+</div>
+
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3" id="toastContainer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// SIDEBAR TOGGLE
+$('#toggleSidebar').click(function(){
+    $('#sidebar').toggleClass('collapsed');
+    $('#mainContent').toggleClass('collapsed');
+    $('.link-text').toggle();
+});
+
+// NAVIGATION
+$('.nav-link').click(function(){
+    $('.nav-link').removeClass('active');
+    $(this).addClass('active');
+    $('.section').addClass('d-none');
+    $('#' + $(this).data('section')).removeClass('d-none');
+});
+
+// TOAST
+function showToast(msg,type='success'){
+    const id='toast'+Date.now();
+    const html=`<div id="${id}" class="toast align-items-center text-bg-${type} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">${msg}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>`;
+    $('#toastContainer').append(html);
+    new bootstrap.Toast(document.getElementById(id),{delay:3000}).show();
+}
+</script>
+
+</body>
+</html>
