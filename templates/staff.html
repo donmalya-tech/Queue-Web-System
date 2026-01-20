@@ -47,79 +47,81 @@
             <a href="{{ url_for('logout') }}" class="btn btn-outline-primary">Logout</a>
         </div>
 
-        <div class="card p-4 mb-4">
-            <h2 class="h5 mb-3">Select Desk</h2>
-            <select id="deskSelect" class="form-select">
-                <option value="">-- Select Desk --</option>
-            </select>
-        </div>
-
         <div class="card p-4">
-            <h2 class="h5 mb-3">Desk Status</h2>
+            <div class="row mb-3">
+                <div class="col"></div>
+                <div class="col"></div>
+                <div class="col">
+                    <select id="deskSelect" class="form-select">
+                        <option value="">-- Select Station --</option>
+                    </select>
+                </div>
+            </div>
+            <div id="deskWaitingList"></div>
+            <h2 class="h5 mb-3">Status</h2>
             <div id="desks">
                 <em>Please select a desk to see status.</em>
             </div>
         </div>
-        <div id="deskWaitingList"></div>
     </div>
 
     <script>
-let desksLoaded = false; // Flag to populate dropdown only once
+        let desksLoaded = false; // Flag to populate dropdown only once
 
-function loadStatus() {
-    $.get('/status', function (data) {
-        const selectedDesk = $('#deskSelect').val();
-        let html = '';
+        function loadStatus() {
+            $.get('/status', function (data) {
+                const selectedDesk = $('#deskSelect').val();
+                let html = '';
 
-        // Populate dropdown only once
-        if (!desksLoaded) {
-            data.desks.forEach(d => {
-                $('#deskSelect').append(
-                    `<option value="${d.id}">${d.name}</option>`
-                );
-            });
-            desksLoaded = true;
-        }
+                // Populate dropdown only once
+                if (!desksLoaded) {
+                    data.desks.forEach(d => {
+                        $('#deskSelect').append(
+                            `<option value="${d.id}">${d.name}</option>`
+                        );
+                    });
+                    desksLoaded = true;
+                }
 
-        // Show placeholder if no desk selected
-        if (!selectedDesk) {
-            $('#desks').html('<em>Please select a desk to see status.</em>');
-            $('#deskWaitingList').html('');
-            return;
-        }
+                // Show placeholder if no desk selected
+                if (!selectedDesk) {
+                    $('#desks').html('<em>Please select a desk to see status.</em>');
+                    $('#deskWaitingList').html('');
+                    return;
+                }
 
-        // Show ONLY selected desk
-        const desk = data.desks.find(d => d.id == selectedDesk);
-        if (desk) {
-            const statusText = desk.ticket_number
-                ? `Serving Ticket #${desk.ticket_number}`
-                : 'Free';
+                // Show ONLY selected desk
+                const desk = data.desks.find(d => d.id == selectedDesk);
+                if (desk) {
+                    const statusText = desk.ticket_number
+                        ? `Serving Ticket #${desk.ticket_number}`
+                        : 'Free';
 
-            html += `<div class="card shadow-sm p-3 mb-3">
+                    html += `<div class="card shadow-sm p-3 mb-3">
                         <strong>${desk.name}</strong> - ${statusText}
                         ${desk.ticket_number
                             ? `<button class="btn btn-success btn-lg ms-3" onclick="finish(${desk.id})">Finish</button>`
                             : ''}
                      </div>`;
 
-            $('#desks').html(html);
+                    $('#desks').html(html);
 
-            // ------------------ Waiting List for Selected Desk ------------------
-            const deskWaiting = data.waiting.slice(0, 15); // first 15 tickets
-            let waitingHtml = '';
+                    // ------------------ Waiting List for Selected Desk ------------------
+                    const deskWaiting = data.waiting.slice(0, 15); // first 15 tickets
+                    let waitingHtml = '';
 
-            deskWaiting.forEach(t => {
-                waitingHtml += `
+                    deskWaiting.forEach(t => {
+                        waitingHtml += `
                     <div class="card text-center shadow-sm me-2 mb-2" style="width:70px; flex-shrink: 0;">
                         <div class="card-body p-2">
                             <h4 class="mb-0">${t}</h4>
                         </div>
                     </div>
                 `;
-            });
+                    });
 
-            $('#deskWaitingList').html(`
-                <div class="card shadow-sm p-3">
+                    $('#deskWaitingList').html(`
+                <div class="card bg-success shadow-sm p-3">
                     <h5 class="mb-3">Waiting List for ${desk.name}</h5>
                     <div class="d-flex flex-row flex-wrap">
                         ${waitingHtml}
@@ -127,28 +129,28 @@ function loadStatus() {
                 </div>
             `);
 
-        } else {
-            $('#desks').html('<div>Desk not found.</div>');
-            $('#deskWaitingList').html('');
+                } else {
+                    $('#desks').html('<div>Desk not found.</div>');
+                    $('#deskWaitingList').html('');
+                }
+            });
         }
-    });
-}
 
-// Load desks list initially
-loadStatus();
-
-// Refresh every 3 seconds
-setInterval(loadStatus, 3000);
-
-// Reload when desk changes
-$('#deskSelect').on('change', loadStatus);
-
-// Finish current service
-function finish(desk_id) {
-    $.post('/finish_service/' + desk_id, function () {
+        // Load desks list initially
         loadStatus();
-    });
-}
+
+        // Refresh every 3 seconds
+        setInterval(loadStatus, 3000);
+
+        // Reload when desk changes
+        $('#deskSelect').on('change', loadStatus);
+
+        // Finish current service
+        function finish(desk_id) {
+            $.post('/finish_service/' + desk_id, function () {
+                loadStatus();
+            });
+        }
 
     </script>
     <!-- Bootstrap JS -->
