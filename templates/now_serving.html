@@ -58,43 +58,35 @@ function loadActiveAd() {
     });
 }
 loadActiveAd();
-setInterval(loadActiveAd, 30000);
+setInterval(loadActiveAd, 30000); // refresh every 30s
 
 // ------------------- Data Handling -------------------
 let desksData = [];
 let currentIndex = 0;
-
-// Keep track of announced ticket numbers
-let announcedTickets = new Set();
-
-// Control carousel pause while announcing
+let announcedTickets = new Set(); // Only tickets currently being served
 let carouselPaused = false;
+let announcementQueue = [];
+let isSpeaking = false;
 
 // ------------------- Waiting List -------------------
 function updateWaitingList(waiting) {
-    let waitingHtml = '';
+    let html = '';
     waiting.slice(0, 15).forEach(t => {
-        waitingHtml += `<div class="card text-center shadow-sm" style="width:70px;">
+        html += `<div class="card text-center shadow-sm" style="width:70px;">
                     <div class="card-body p-2">
                         <h4 class="mb-0">${t}</h4>
                     </div>
                 </div>`;
     });
-    $('#waitingCards').html(waitingHtml);
+    $('#waitingCards').html(html);
 }
 
-// ------------------- Speech -------------------
-let announcementQueue = [];
-let isSpeaking = false;
-
+// ------------------- Speech Announcement -------------------
 function announceTicket(ticket_number, desk_name) {
     if (!ticket_number || !desk_name) return;
 
-    if (announcedTickets.has(ticket_number)) return;
-    announcedTickets.add(ticket_number);
-
-    const msgText = `Ticket number ${ticket_number} go to ${desk_name}`;
-    announcementQueue.push({ text: msgText, ticket_number, desk_name });
+    const text = `Ticket number ${ticket_number}, go to ${desk_name}`;
+    announcementQueue.push({ text, ticket_number, desk_name });
     processQueue();
 }
 
@@ -102,46 +94,42 @@ function processQueue() {
     if (isSpeaking || announcementQueue.length === 0) return;
 
     const next = announcementQueue.shift();
-    const text = next.text;
-    const ticket_number = next.ticket_number;
-    const desk_name = next.desk_name;
+    const { text, ticket_number, desk_name } = next;
 
     if ('speechSynthesis' in window) {
         const msg = new SpeechSynthesisUtterance(text);
         msg.rate = 1;
         msg.pitch = 1;
 
-        // Pick a female voice if available
+        // Female voice if available
         const voices = window.speechSynthesis.getVoices();
         const femaleVoice = voices.find(v => /female|woman|zira/i.test(v.name));
         if (femaleVoice) msg.voice = femaleVoice;
 
-        // Show ticket in focus
+        // Show card while announcing
         showServingNowCard({ ticket_number, name: desk_name });
 
-        // Pause carousel while announcing
         carouselPaused = true;
-
         isSpeaking = true;
+
         msg.onend = () => {
             isSpeaking = false;
-            // Keep card in focus for 5 seconds before resuming carousel
             setTimeout(() => {
                 carouselPaused = false;
                 processQueue();
-            }, 5000);
+            }, 5000); // keep focus for 5s
         };
 
         window.speechSynthesis.speak(msg);
     }
 }
 
-// ------------------- Serving Now -------------------
+// ------------------- Serving Now Card -------------------
 function showServingNowCard(d) {
     if (!d || !d.ticket_number) return;
     const html = `<div class="mt-5 d-flex justify-content-center">
-        <h1 class="mt-5 text-success">Ticket ${d.ticket_number} go to ${d.name}</h1>
-        </div>`;
+                    <h1 class="mt-5 text-success">Ticket ${d.ticket_number} go to ${d.name}</h1>
+                  </div>`;
     $('#servingCards').fadeOut(200, function () {
         $(this).html(html).fadeIn(500);
     });
@@ -150,23 +138,31 @@ function showServingNowCard(d) {
 // ------------------- Load Status -------------------
 function loadStatus() {
     $.get('/status', function (data) {
-        // Update Waiting List
+        // Update waiting list
         updateWaitingList(data.waiting);
 
-        // Get desks with active tickets
-        const newDesks = data.desks.filter(d => d.ticket_number);
+        // Only tickets currently being served at desks
+        const servingDesks = data.desks.filter(d => d.ticket_number);
 
-        // Announce newly added tickets
-        newDesks.forEach(d => {
+        // Announce newly served tickets
+        servingDesks.forEach(d => {
             if (!announcedTickets.has(d.ticket_number)) {
+                announcedTickets.add(d.ticket_number);
                 announceTicket(d.ticket_number, d.name);
             }
         });
 
-        // Update desksData for cycling
-        desksData = newDesks;
+        // Remove tickets that are no longer at desks (finished)
+        const currentTickets = servingDesks.map(d => d.ticket_number);
+        announcedTickets.forEach(t => {
+            if (!currentTickets.includes(t)) {
+                announcedTickets.delete(t);
+            }
+        });
 
-        // Show first card if nothing displayed
+        desksData = servingDesks;
+
+        // Show first card if empty
         if (desksData.length > 0 && $('#servingCards').is(':empty')) {
             currentIndex = 0;
             showServingNowCard(desksData[currentIndex]);
@@ -176,22 +172,23 @@ function loadStatus() {
 
 // ------------------- Initial Load -------------------
 loadStatus();
-setInterval(loadStatus, 3000);
+setInterval(loadStatus, 3000); // refresh every 3s
 
 // ------------------- Carousel -------------------
-setInterval(function () {
+setInterval(() => {
     if (desksData.length === 0) return;
-    if (carouselPaused) return; // pause when announcement is in focus
+    if (carouselPaused) return;
 
     currentIndex = (currentIndex + 1) % desksData.length;
     showServingNowCard(desksData[currentIndex]);
-}, 10000);
+}, 10000); // every 10s
 
-// Ensure voices are loaded for speech synthesis
+// Ensure voices loaded
 window.speechSynthesis.onvoiceschanged = () => { console.log("Voices loaded"); };
 
+</script>
 
-    </script>
+
 
 
 </body>
